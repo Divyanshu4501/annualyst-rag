@@ -14,6 +14,9 @@ import threading
 from contextlib import asynccontextmanager
 from typing import Optional
 
+from pathlib import Path
+from fastapi.responses import FileResponse
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
@@ -35,6 +38,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Annualyst RAG", version="0.1.0", lifespan=lifespan)
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+
+@app.get("/", include_in_schema=False)
+def home():
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 class AskRequest(BaseModel):
