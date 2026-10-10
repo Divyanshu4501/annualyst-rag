@@ -12,6 +12,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -43,10 +44,11 @@ Rules:
 1. Use ONLY the context chunks provided. Never use outside knowledge.
 2. Every factual claim must be supported by at least one chunk; list the IDs of the chunks you used in "citations".
 3. If the context does not contain the answer, set "found" to false, set "answer" to a one-line statement that the reports provided do not contain this information, and return an empty "citations" list. Do not guess.
-4. Be precise with numbers: keep units (crore, lakh, %, '000) and say which year a figure belongs to.
-5. Note: due to PDF font extraction, the rupee symbol may appear as ` or I or H or J directly before a number (e.g. `74,671.3 crore or I3,110 crore). Treat these as Rs./₹.
+4. Numbers: copy every figure EXACTLY as printed in the context (same digits, commas and decimal point) and say which year it belongs to. Never move a decimal point or rescale on your own.
+5. Note: due to PDF font extraction, the rupee symbol may appear as ` or C or I or H or J (e.g. `74,671.3 crore, I3,110 crore, "(C in '000)"). Treat these as ₹.
 6. Distinguish the company from its subsidiaries (e.g. HDFC Bank vs HDFC Securities). Only answer about the entity asked for.
-7. Tables are given in markdown. Read the column headers carefully (current year vs previous year, standalone vs consolidated)."""
+7. Tables are given in markdown. Read the column headers carefully (current year vs previous year, standalone vs consolidated).
+8. Units: a block header may say "units on this page: ...". That unit applies to every figure from that page. Answer as: the figure exactly as printed, its unit, then the ₹ crore value, e.g. "746,712,933 (₹ in '000), i.e. ₹74,671.29 crore". Convert using exactly: 1 crore = 100 lakh = 10,000 thousand = 10 million. If no unit is given for a figure, give it as printed and say the unit is not stated in the retrieved text. Never write "crore" next to a number that is not in crore."""
 
 RESPONSE_SCHEMA = {
     "type": "json_schema",
@@ -66,6 +68,32 @@ RESPONSE_SCHEMA = {
     },
 }
 
+# Unit declarations printed once per page, e.g. "(C in '000)" (the rupee sign often extracts as
+# ` C I H J), "(₹ in lakh)", "(₹ crore)". Found on any chunk of a page -> applied to the whole page.
+UNIT_RE = re.compile(
+    r"\(\s*(?:₹|`|C|I|H|J|Rs\.?|INR)?\s*(?:in\s+)?(['‘’]\s?000|thousands?|lakhs?|millions?|crores?)\s*\)",
+    re.IGNORECASE)
+UNIT_NOTES = {
+    "000": "₹ in thousands ('000) - divide by 10,000 to get ₹ crore",
+    "thousand": "₹ in thousands - divide by 10,000 to get ₹ crore",
+    "lakh": "₹ in lakh - divide by 100 to get ₹ crore",
+    "million": "₹ in million - divide by 10 to get ₹ crore",
+    "crore": "₹ in crore",
+}
+
+
+def page_unit(texts):
+    """Return a unit note if any chunk of the page declares a unit, else None."""
+    for t in texts:
+        m = UNIT_RE.search(t)
+        if m:
+            u = m.group(1).lower()
+            for key, note in UNIT_NOTES.items():
+                if key in u:
+                    return note
+    return None
+
+
 NO_COMPANY_MSG = ("Which company do you mean? The question doesn't name one. "
                   "Available: " + ", ".join(COMPANY_NAMES.values()) + ".")
 NOT_VERIFIED_MSG = "I couldn't verify an answer to this in the provided reports."
@@ -76,7 +104,8 @@ def build_context(hits):
     for h in hits:
         name = COMPANY_NAMES.get(h["company"], h["company"])
         section = f", section: {h['section']}" if h.get("section") else ""
-        blocks.append(f"[{h['chunk_id']}] ({name}, page {h['page']}{section})\n{h['text']}")
+        unit = f", units on this page: {h['unit']}" if h.get("unit") else ""
+        blocks.append(f"[{h['chunk_id']}] ({name}, page {h['page']}{section}{unit})\n{h['text']}")
     return "\n\n---\n\n".join(blocks)
 
 
@@ -112,6 +141,7 @@ class Answerer:
                 page_score[key] = s
         hits, used = [], 0
         for key in page_order[:self.pages]:
+            unit = page_unit(chunks[j]["text"] for j in self.page_chunks[key])
             for i in self.page_chunks[key]:
                 text = chunks[i]["text"]
                 if used + len(text) > self.max_chars and hits:
@@ -120,7 +150,7 @@ class Answerer:
                 c = chunks[i]
                 hits.append({"score": page_score[key], "chunk_id": c["chunk_id"],
                              "company": c["company"], "page": c["page"], "type": c.get("type"),
-                             "section": c.get("section"), "text": text,
+                             "section": c.get("section"), "text": text, "unit": unit,
                              "retrieved": i in retrieved})
         return hits
 
