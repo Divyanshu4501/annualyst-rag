@@ -6,14 +6,14 @@ Never use the eval file's "company" field for this — that would leak the answe
 import re
 
 COMPANY_ALIASES = {
-    "asianpaints": ["asian paints", "asianpaints"],
+    "asianpaints": ["asian paints", "asianpaints", "white teak", "weatherseal"],
     "eternal": ["eternal", "zomato", "blinkit", "hyperpure"],
-    "hdfcbank": ["hdfc bank", "hdfcbank", "hdfc"],
+    "hdfcbank": ["hdfc bank", "hdfcbank", "hdfc", "hdb financial", "hdb financial services"],
     "icicibank": ["icici bank", "icicibank", "icici"],
-    "infosys": ["infosys", "infy"],
-    "itc": ["itc"],
+    "infosys": ["infosys", "infy", "edgeverve", "finacle"],
+    "itc": ["itc", "aashirvaad", "sunfeast", "bingo", "classmate", "savlon", "fiama"],
     "nykaa": ["nykaa", "fsn e-commerce", "fsn ecommerce"],
-    "titan": ["titan", "tanishq", "caratlane", "fastrack"],
+    "titan": ["titan", "tanishq", "caratlane", "fastrack", "taneira", "zoya"],
 }
 
 _PATTERNS = {
