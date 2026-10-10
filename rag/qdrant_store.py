@@ -38,7 +38,7 @@ def get_client():
     global _CLIENT
     if _CLIENT is None:
         if is_server():
-            _CLIENT = QdrantClient(url=os.environ["QDRANT_URL"], timeout=120)
+            _CLIENT = QdrantClient(url=os.environ["QDRANT_URL"],api_key=os.getenv("QDRANT_API_KEY"), timeout=120)
         else:
             _CLIENT = QdrantClient(path=str(LOCAL_PATH))
         atexit.register(_CLIENT.close)  # close cleanly before Python shuts down
