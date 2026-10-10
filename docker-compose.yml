@@ -1,0 +1,22 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.19.2          # same version you run now
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./data/qdrant_storage:/qdrant/storage   # existing collection, no re-upload
+    restart: unless-stopped
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env                         # OPENAI_API_KEY, ABACI_API_KEY
+    environment:
+      QDRANT_URL: http://qdrant:6333       # container-to-container address (overrides .env)
+    volumes:
+      - ./data/index/docling_fine5:/app/data/index/docling_fine5:ro   # chunks.jsonl + meta.json
+      - ./data/cache:/app/data/cache                                   # query embedding cache
+    depends_on:
+      - qdrant
+    restart: on-failure                    # retries if Qdrant isn't ready yet

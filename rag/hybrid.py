@@ -8,7 +8,6 @@ from pathlib import Path
 import bm25s
 import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 from rag.companies import detect_companies
 
@@ -53,8 +52,8 @@ class _Base:
 
 class DenseRetriever(_Base):
     """Local embedding model (bge-small) for indexes built by rag/index.py. FAISS only."""
-
     def __init__(self, index_dir, chunks=None, store="faiss"):
+        from sentence_transformers import SentenceTransformer
         if store != "faiss":
             raise SystemExit("bge-small indexes are only in FAISS; use --store faiss")
         meta = load_meta(index_dir)

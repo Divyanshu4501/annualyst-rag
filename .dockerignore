@@ -1,0 +1,10 @@
+.git
+.venv
+.env
+data
+logs
+eval
+scripts
+**/__pycache__
+*.ipynb
+*.log
