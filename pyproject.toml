@@ -10,6 +10,7 @@ dependencies = [
     "faiss-cpu>=1.15.1",
     "fastapi>=0.142.2",
     "matplotlib>=3.11.2",
+    "modal>=1.6.1",
     "openai>=3.24.0",
     "pydantic>=2.13.5",
     "pymupdf>=1.28.2",
